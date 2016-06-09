@@ -86,3 +86,15 @@ function upitt_islandora_memberofsite_islandora_overview_object_alter(
       theme('table', array('header' => $header, 'rows' => $rows)) : ''),
   );
 }
+
+/**
+ * Implements hook_permission().
+ */
+function upitt_islandora_memberofsite_permission() {
+  return array(
+    UPITT_ISLANDORA_MEMBEROFSITE_MANAGE => array(
+      'title' => t('Manage isMemberOfSite relationships'),
+      'description' => t('Manage isMemberOfSite relationships for collection objects in the repository.'),
+    ),
+  );
+}
