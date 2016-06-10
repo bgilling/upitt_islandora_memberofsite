@@ -55,6 +55,7 @@ function upitt_islandora_memberofsite_memberofsite_add($form, &$form_state, Abst
  */
 function upitt_islandora_memberofsite_memberofsite_add_submit($form, &$form_state) {
   $object = islandora_object_load($form_state['values']['object_id']);
+  $object->relationships->add(variable_get('upitt_islandora_memberofsite_namespace'), 'isMemberOfSite', $form_state['values']['site']);
   drupal_set_message(t('The "isMemberOfSite" relationship has been added to "@object_id".', array('object_id' => $form_state['values']['object_id'])));
   $form_state['redirect'] = "islandora/object/{$form_state['values']['object_id']}/manage/";
 }
