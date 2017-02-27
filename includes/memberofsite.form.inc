@@ -102,10 +102,10 @@ function upitt_islandora_memberofsite_memberofsite_remove_submit($form, &$form_s
     $object = islandora_object_load($form_state['values']['object_id']);
     // Remove the relationship that matches the string value for $ns / $site.
     if ($object->relationships->remove($ns, 'isMemberOfSite', $form_state['values']['site'])) {
-      drupal_set_message(t('The "isMemberOfSite" relationship has been removed for "@site" in the "@ns" resource.', array('site' => $site, 'ns' => $ns)));
+      drupal_set_message(t('The "isMemberOfSite" relationship has been removed for "@site" in the "@ns" resource.', array('@site' => $site, '@ns' => $ns)));
     }
     else {
-      drupal_set_message(t('There was a problem attempting to remove the "isMemberOfSite" relationship for "@site" in the "@ns" resource.', array('site' => $site, 'ns' => $ns)));
+      drupal_set_message(t('There was a problem attempting to remove the "isMemberOfSite" relationship for "@site" in the "@ns" resource.', array('@site' => $site, '@ns' => $ns)));
     }
   }
   $form_state['redirect'] = "islandora/object/{$object->id}/manage/";
