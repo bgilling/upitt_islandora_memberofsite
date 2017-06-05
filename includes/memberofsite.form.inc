@@ -10,6 +10,7 @@
  */
 function upitt_islandora_memberofsite_memberofsite_add($form, &$form_state, AbstractObject $object) {
   $sites = variable_get('upitt_islandora_memberofsite_sites');
+
   // Remove the sites that have been configured for this object already.
   $obj_sites = $object->relationships->get(NULL, 'isMemberOfSite');
   $existing_sites = $newsites = array();
@@ -27,7 +28,10 @@ function upitt_islandora_memberofsite_memberofsite_add($form, &$form_state, Abst
     }
   }
   if (count($newsites) < 1) {
-    drupal_set_message('This object is already associated with all possible site values or no sites have been configured for the isMemberOfSite module.');
+    drupal_set_message('This object is already associated with all possible site values ' .
+            'or no sites have been configured for the isMemberOfSite module. ' .
+            l('Change the available Sites for adding IsMemberOfSite tags to object models',
+              'admin/islandora/tools/upitt_islandora_memberofsite'));
     drupal_goto("islandora/object/{$object->id}/manage/");
     return FALSE;
   }
@@ -42,11 +46,20 @@ function upitt_islandora_memberofsite_memberofsite_add($form, &$form_state, Abst
       '#type' => 'value',
       '#value' => $object->id,
     ),
-    'submit' => array(
+  );
+  $is_collection_object = in_array('islandora:collectionCModel', $object->models);
+  if ($is_collection_object) {
+    $form['also_add_children'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Also add this site relationship for all objects in this collection'),
+      '#default_value' => TRUE,
+    );
+  }
+  $form['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Save'),
-    ),
-  );
+    );
+
   return $form;
 }
 
@@ -56,7 +69,23 @@ function upitt_islandora_memberofsite_memberofsite_add($form, &$form_state, Abst
 function upitt_islandora_memberofsite_memberofsite_add_submit($form, &$form_state) {
   $object = islandora_object_load($form_state['values']['object_id']);
   $object->relationships->add(variable_get('upitt_islandora_memberofsite_namespace'), 'isMemberOfSite', $form_state['values']['site']);
-  drupal_set_message(t('The "isMemberOfSite" relationship has been added to "@object_id".', array('object_id' => $form_state['values']['object_id'])));
+  drupal_set_message(t('The "isMemberOfSite" relationship has been added to "@object_id".', array('@object_id' => $form_state['values']['object_id'])));
+
+  $is_collection_object = in_array('islandora:collectionCModel', $object->models);
+  if ($is_collection_object && isset($form_state['values']['also_add_children']) &&
+    $form_state['values']['also_add_children']) {
+    module_load_include('inc', 'islandora_basic_collection', 'include/utilities');
+    list($count, $results) = islandora_basic_collection_get_member_objects($object, 0, 9999, 'view');
+    foreach ($results as $child_object_result) {
+      $child_object = isset($child_object_result['object']['value']) ? islandora_object_load($child_object_result['object']['value']) : NULL;
+      if ($child_object) {
+        $child_object->relationships->add(variable_get('upitt_islandora_memberofsite_namespace'), 'isMemberOfSite', $form_state['values']['site']);
+      }
+    }
+    drupal_set_message(t('The "isMemberOfSite" relationship has also been added for all @count child objects in this "@object_id" collection.',
+      array('@count' => $count, '@object_id' => $form_state['values']['object_id'])));
+  }
+
   $form_state['redirect'] = "islandora/object/{$form_state['values']['object_id']}/manage/";
 }
 
@@ -82,9 +111,18 @@ function upitt_islandora_memberofsite_memberofsite_remove($form, &$form_state, A
     ),
   );
 
+  $is_collection_object = in_array('islandora:collectionCModel', $object->models);
+  if ($is_collection_object) {
+    $form['also_remove_children'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Also remove this site relationship for all objects related to this collection.'),
+      '#default_value' => TRUE,
+    );
+  }
+
   return confirm_form(
     $form,
-    t('Are you sure you want to delete the "isMemberOfSite" relationship from "@site" in the "@ns" resource?', array('site' => $site, 'ns' => $ns)),
+    t('Are you sure you want to delete the "isMemberOfSite" relationship from "@site" in the "@ns" resource?', array('@site' => $site, '@ns' => $ns)),
     "islandora/object/{$object->id}/manage/",
     t('This action cannot be undone.'),
     t('Delete'),
@@ -108,5 +146,35 @@ function upitt_islandora_memberofsite_memberofsite_remove_submit($form, &$form_s
       drupal_set_message(t('There was a problem attempting to remove the "isMemberOfSite" relationship for "@site" in the "@ns" resource.', array('@site' => $site, '@ns' => $ns)));
     }
   }
+
+  $is_collection_object = in_array('islandora:collectionCModel', $object->models);
+  if ($is_collection_object && isset($form_state['values']['also_remove_children']) &&
+    $form_state['values']['also_remove_children']) {
+    module_load_include('inc', 'islandora_basic_collection', 'include/utilities');
+    list($count, $results) = islandora_basic_collection_get_member_objects($object, 0, 9999, 'view');
+    $problem_pids = TRUE;
+    foreach ($results as $child_object_result) {
+      $child_object = isset($child_object_result['object']['value']) ? islandora_object_load($child_object_result['object']['value']) : NULL;
+      if ($child_object) {
+        if ($child_object->relationships->remove($ns, 'isMemberOfSite', $form_state['values']['site'])) {
+          $child_object->relationships->add(variable_get('upitt_islandora_memberofsite_namespace'), 'isMemberOfSite', $form_state['values']['site']);
+        }
+        else {
+          $problem_pids[] = $child_object->id;
+        }
+      }
+    }
+    if (count($problem_pids) > 0) {
+      drupal_set_message(t('There was a problem attempting to remove the "isMemberOfSite" ' .
+        'relationship for "@site" in the "@ns" resource.', array('@site' => $site, '@ns' => $ns)));
+    }
+    else {
+      drupal_set_message(t('The "isMemberOfSite" relationship "@site" in the "@ns" resource ' .
+        'has also been removed for all child objects of "@object_title".',
+        array('@site' => $site, '@ns' => $ns, '@object_title' => $object->label)));
+    }
+  }
+
+
   $form_state['redirect'] = "islandora/object/{$object->id}/manage/";
 }

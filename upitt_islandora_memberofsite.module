@@ -66,12 +66,14 @@ function upitt_islandora_memberofsite_islandora_overview_object_alter(
   }
   $header = array('Resource', 'OPERATIONS');
   $attributes = array();
+  $is_collection_object = in_array('islandora:collectionCModel', $object->models);
+
   // Add isMemberOfSite to this Collection.
-  $add_to_collection_link = array(
+  $add_isMemberOfSite_link = array(
     'element' => array(
       '#link' => array(
         'href' => "islandora/object/{$object->id}/manage/collection/memberofsite/add",
-        'title' => 'Add isMemberOfSite to this Collection',
+        'title' => 'Add isMemberOfSite to this ' . (($is_collection_object) ? 'Collection' : 'Object'),
       ),
     ),
   );
@@ -80,7 +82,7 @@ function upitt_islandora_memberofsite_islandora_overview_object_alter(
     '#type' => 'item',
     '#title' => 'Member Of Site',
     '#markup' => '<ul class="action-links">' .
-    theme_menu_local_action($add_to_collection_link) .
+    theme_menu_local_action($add_isMemberOfSite_link) .
     '</ul>' .
     ((count($rows) > 0) ?
       theme('table', array('header' => $header, 'rows' => $rows)) : ''),
